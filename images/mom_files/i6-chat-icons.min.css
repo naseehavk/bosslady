@@ -1,0 +1,111 @@
+@font-face {
+    font-family: 'i6-chat-icons';
+    src:  url('fonts/i6-chat-icons.eot?2ohgs3');
+    src:  url('fonts/i6-chat-icons.eot?2ohgs3#iefix') format('embedded-opentype'),
+      url('fonts/i6-chat-icons.ttf?2ohgs3') format('truetype'),
+      url('fonts/i6-chat-icons.woff?2ohgs3') format('woff'),
+      url('fonts/i6-chat-icons.svg?2ohgs3#i6-chat-icons') format('svg');
+    font-weight: normal;
+    font-style: normal;
+  }
+  
+  [class^="icon"], [class*=" icon"] {
+    /* use !important to prevent issues with browser extensions that change fonts */
+    font-family: 'i6-chat-icons' !important;
+    speak: none;
+    font-style: normal;
+    font-weight: normal;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+  
+    /* Better Font Rendering =========== */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  .iconAlert:before {
+    content: "\e900";
+  }
+  .iconAttachment:before {
+    content: "\e901";
+  }
+  .iconChatHeader:before {
+    content: "\e902";
+  }
+  .iconLoading:before {
+    content: "\e903";
+  }
+  .iconMaximice:before {
+    content: "\e904";
+  }
+  .iconMessageArrow:before {
+    content: "\e905";
+  }
+  .iconMinimize:before {
+    content: "\e906";
+  }
+  .iconOk:before {
+    content: "\e907";
+  }
+  .iconPrint:before {
+    content: "\e908";
+  }
+  .iconSendMessage:before {
+    content: "\e909";
+  }
+  .iconSoundOff:before {
+    content: "\e90a";
+  }
+  .iconSoundOn:before {
+    content: "\e90b";
+  }
+  .iconWriting:before {
+    content: "\e90c";
+  }
+  .iconClose:before {
+    content: "\e90d";
+  }
+  .iconMail:before {
+    content: "\e90e";
+  }
+  .iconDesktopNotificationOff:before {
+    content: "\e90f";
+  }
+  .iconDesktopNotificationOn:before {
+    content: "\e910";
+  }
+  .iconSmileyOutline:before {
+    content: "\e912";
+  }
+  .iconSmiley:before {
+    content: "\e912";
+  }
+  .iconEmojiPicker:before {
+    content: "\e912";
+  }
+  .iconScreenShareStart:before {
+    content: "\e913";
+  }
+  .iconScreenShareStop:before {
+    content: "\e914";
+  }
+  .iconScreenShare:before {
+    content: "\e915";
+  }
+  .iconScreenShareDisable:before {
+    content: "\e916";
+  }
+  .iconGeoloc:before {
+    content: "\e917";
+  }
+  .iconGeolocStop:before {
+    content: "\e918";
+  }
+  .icon-expand-window:before {
+    content: "\e919";
+  }
+  .icon-compress-window:before {
+    content: "\e91a";
+  }
+  

@@ -1,0 +1,78 @@
+
+/**
+ * @description 校验给出的字节数据是否符合某种MIME Type的signature
+ * @param {Array} bufferss 字节数据
+ * @param {Object} typeItem 校验项 { signature, offset  }
+ */
+const Check = (bufferss, { signature, offset = 0 }) => {
+  for (let i = 0, len = signature.length; i < len; i++) {
+    // 传入字节数据与文件signature不匹配
+    // 需考虑有offset的情况以及signature中有值为undefined的情况
+    if (bufferss[i + offset] !== signature[i] && signature[i] !== undefined)
+      return false;
+  }
+  return true;
+};
+
+/**
+ * @description 获取文件二进制数据
+ * @param {File} file 文件对象实例
+ * @param {Object} options 配置项，指定读取的起止范围
+ */
+const GetArrayBuffer = (file, { start, end }) => {
+  return new Promise((reslove, reject) => {
+    try {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const buffers = new Uint8Array(e.target.result);
+        reslove(buffers);
+      };
+      reader.onerror = (err) => reject(err);
+      reader.onabort = (err) => reject(err);
+      reader.readAsArrayBuffer(file.slice(start, end));
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+const GetFileExtension = (file) => {
+  var file_a = (file.name || "").split(".");
+  return file_a.length && file_a[file_a.length - 1] || "";
+};
+
+/**
+ * @description 获取文件的真实类型
+ * @param {File} file 文件对象实例
+ * @param {Object} options 配置项，指定读取的起止范围
+ */
+const GetFileType = (file, options = { start: 0, end: 32 }) =>
+GetArrayBuffer(file, options)
+    .then((buffers) => {
+      // 找出签名列表中定义好的类型，并返回
+      let arrSign = []; // Array is added, because the same mime can exist for several extensions
+      for (let i = 0, len = signatureList.length; i < len; i++) {
+        if (Check(buffers, signatureList[i])) {
+          const { mime, ext } = signatureList[i];
+          arrSign.push({ mime, ext })
+        }
+      }
+      if (arrSign.length === 0) { //If not found, the mime of the file is returned, without checking metadata
+        return { mime: file.type, ext: "" };
+      }
+      
+      const fileExt = GetFileExtension(file);
+      //If there is only one option, it is returned
+      if (arrSign.length === 1 || !fileExt || fileExt === "") {
+        return arrSign[0];
+      }
+
+      //If there is more than one option, it is searched by the extension
+      for (let index = 0; index < arrSign.length; index++) {
+        const element = arrSign[index];
+        if (element.ext === fileExt) {
+          return arrSign[index];
+        }
+      }
+      return { mime: file.type, ext: "" };
+    })
+    .catch((err) => err);

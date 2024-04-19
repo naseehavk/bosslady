@@ -1,0 +1,1017 @@
+/* global token, ga, UNKNOWN */
+
+function haveScreen(screenName){
+    var app = icc.ui.getApplication();
+    var views = app.getSettings().views || [];
+    for (i = 0;i<views.length;i++){
+		var view = views[i];
+		if (view.name === screenName){
+			return true;
+		}
+    }
+}
+
+function chatScreens() {
+	return [
+		"chat",
+		"___chatv3",
+		"webcall",
+		"___webcall",
+		"___chat"
+	];
+}
+
+function findScreen(screenNames) {
+    return screenNames.find(haveScreen);
+}
+
+function findChatScreen() {
+    return chatScreens().find(haveScreen);
+}
+
+function getAppConfig() {
+	var app = icc.ui.getApplication();
+	var appConfig = app.getSettings();
+	return appConfig["chatcampaign"] || appConfig["webcallcampaign"] || {};
+}
+
+function resizePopup(){
+    var app = icc.ui.getApplication();
+    app.setSettings({minScreenHeight:140});
+    var config = getAppConfig();
+    try{
+    	document.title = "Chat";
+    	if (window==window.top){
+	    	if (config.wWidth && config.wHeight){
+				window.resizeTo(config.wWidth ,config.wHeight);
+			}
+		}
+    }catch(e){}
+}
+
+
+function validateDatasources(form){
+    var r = true;
+    for (k in form.environment.datasources){
+	var ds = form.environment.datasources[k];
+	if(ds.mode === "edit" || ds.mode === "new"){
+		var currentId;
+		if( ds.config.store.type === "icc_summarizer_ds"){
+			currentId = ds.row().ID;
+			ds.set("ID","__temp__");
+		}
+
+		if(!ds.readyToExecute("save")){
+
+			var field_errors = {};
+			var c=0;
+			for (var k in ds.lastError.field_errors){
+				if (ds.checkForField(k)){
+
+					field_errors[k] = ds.lastError.field_errors[k];
+					c++;
+				}
+			}
+			ds.lastError.field_errors = field_errors;
+			if(c){
+				icc.ui.displayMessage(ds.lastError);
+				r = false;
+			}
+		}
+		if(ds.config.store.type === "icc_summarizer_ds"){
+			ds.set("ID",currentId);
+		}
+
+	}
+    }
+    form.eachCtrl(function(ctrl){
+	if(ctrl.datasource==undefined || ctrl.field == undefined){
+		if (ctrl.performValidation ){
+			var t = ctrl.performValidation (true).code == 0;
+			r=r?t:r;
+		}
+	}
+    });
+    return r;
+}
+
+function getDatasourcesContext(form) {
+	var internalFields = {
+		_rowid : true,
+		_status : true,
+		ID : true,
+		_HasLogin : true,
+		_HasPreSurvey : true,
+		_HasPostSurvey : true,
+		_survey_data : true,
+		_udata : true
+	};
+
+	var datasources = {};
+	for (var dsName in form.environment.datasources){
+		var ds = form.environment.datasources[dsName];
+		//solo guardamos context de datasources de tipo summarizer
+		if( !ds || ds.config.store.type !== "icc_summarizer_ds" || !ds.crow) {
+			continue;
+		}
+		var dsData = {};
+		for (var fieldName in ds.crow) {
+			if (internalFields[fieldName]) {
+				continue;
+			}
+			dsData[fieldName] = ds.crow[fieldName];
+		}
+		datasources[dsName] = dsData;
+	}
+	return datasources;
+}
+
+function setDatasourcesContext(form, context) {
+	if (!context || !context.datasources) {
+		return;
+	}
+	for (var dsName in context.datasources) {
+		var ds = form.environment.datasources[dsName];
+		var dsContext = context.datasources[dsName];
+		if (!ds || !dsContext) {
+			continue;
+		}
+		for (var fieldName in dsContext) {
+			var fieldValue = dsContext[fieldName];
+			if (!fieldValue) {
+				continue;
+			}
+			try {
+				ds.set(fieldName, fieldValue);
+			}
+			catch(e) { }
+		}
+	}
+}
+
+var first=true;
+function updatePresurveyArgs(form,args){
+
+	if(first){
+		args.pre_survey = undefined;
+		if (typeof args.params === "string") {
+			args.params = JSON.parse(decodeURIComponent(args.params || "{}"));
+		}
+		for(var k in args.params){
+			var field = args.params[k];
+			field.name = field.n;
+			field.alias = field.a;
+			field.type = field.t;
+			field.value = field.v;
+			field.hidden = field.h;
+			args[field.name || field.alias] = field.value;
+			if(field.type !== "CUSTOM" && field.type){
+				args[field.type] = field.value;
+			}
+		}
+
+		first=false;
+	}
+	//console.log(JSON.stringify(args))
+
+	var fmap = {};
+	args[form.id] = args[form.id] || [];
+	for (var idx = 0;idx<args[form.id].length;idx++){
+		var field = args[form.id][idx];
+		fmap[(field.name || "")+":"+(field.alias || "")]=field;
+	}
+
+	var AddValue = function( id, type, name, value, other_values, isHidden )
+	{
+		var field = fmap[ (id || "") + ":" + (name || "") ];
+		if ( !field ) {
+			var arg = {
+				type  : type,
+				alias : name,
+				value : value,
+				name  : id,
+				other_values : other_values
+			};
+			if (isHidden) {
+				arg.hidden = true;
+			}
+			// if ( ctrl.finalization_mail ) {
+				// arg.finalization = { send: false };
+			// }
+			args[ form.id ].push( arg );
+		}
+		else {
+			field.value = value;
+		}
+	};
+
+	form.eachCtrl(function(ctrl)
+	{
+		if ( ctrl.can_include === false ) {
+			// continue;
+		}
+		else {
+			var isHidden = !!ctrl.contextInfoHidden;
+			var name = ctrl.id;
+			if (ctrl.getCaption && ctrl.uiclass !== "label") {
+				var t = icc.utils.trim( ctrl.getCaption() );
+				if( t!== "" ){
+					name=t;
+				}
+			}
+			if (ctrl.contextInfoLabel) {
+				name = ctrl.contextInfoLabel;
+			}
+
+			if ( typeof ctrl.getValues === "function" ) {
+				var values = ctrl.getValues();
+				var id     = values.id || ctrl.id;
+				var type   = values.type || "CUSTOM";
+				name       = values.name || name;
+
+				AddValue( id, type, name, values.value, values.other_values, isHidden );
+			}
+			else {
+				var value;
+				if ( ctrl.getText && !ctrl.chatctrl_input ){
+					value = ctrl.getText();
+				}else if( ctrl.getChecked ) {
+					value = ctrl.getChecked();
+					if (value && ctrl.checkedValue !== undefined) {
+						value =ctrl.checkedValue;
+					}
+					if (!value && ctrl.uncheckedValue !== undefined) {
+						value =ctrl.uncheckedValue;
+					}
+				}
+				if( value!== undefined ){
+					var t = "CUSTOM";
+					if( ctrl.id==="EMAIL" || ctrl.id === "NAME" || ctrl.id === "ID" || ctrl.id === "PHONE" ) {
+						t= ctrl.id;
+						if ( value !== undefined ) {
+							args[ctrl.id]=value;
+						}
+					}
+
+					if( ctrl.identifierType ) {
+						AddValue( ctrl.id, ctrl.identifierType, name, value, undefined, isHidden );
+						t = null;
+						if(ctrl.identifierType === "ID" && ctrl.contactIdType && ctrl.contactIdType!=="ANYTHING") {
+							t =  ctrl.contactIdType;
+						}
+					}else{
+						if(ctrl.addressType) {
+							t = ctrl.addressType;
+						}
+					}
+					if ( t ) {
+						AddValue(
+							ctrl.id,
+							t,
+							name,
+							value,
+							{ countryCode: ctrl.countryCode, areaCode: ctrl.areaCode },
+							isHidden
+						);
+					}
+				}
+			}
+		}
+    });
+}
+function setSurveyID(form,sessionID){
+    for (var k in form.environment.datasources){
+		var ds = form.environment.datasources[k];
+		if(ds.mode === "edit" || ds.mode === "new"){
+			if( ds.config.store.type === "icc_summarizer_ds"){
+				ds.set("ID",sessionID);
+			}
+		}
+    }
+}
+
+function savePartialDataToSummarizer(form,sessionID){
+    var r = true;
+    var invalidFields=[];
+    var summarizerDSs = [];
+    for (var k in form.environment.datasources){
+		var ds = form.environment.datasources[k];
+		if(ds.mode === "edit" || ds.mode === "new" && ds.config.store.type === "icc_summarizer_ds"){
+			var currentId;
+			summarizerDSs.push(ds);
+			if(!ds.readyToExecute("save")){
+				var field_errors = {};
+				var c=0;
+				for (k in ds.lastError.field_errors){
+					if (ds.checkForField(k)){
+
+						field_errors[k] = ds.lastError.field_errors[k];
+						c++;
+					}else
+						invalidFields.push({ds:ds,name:k});
+				}
+				ds.lastError.field_errors = field_errors;
+				if(c){
+					icc.ui.displayMessage(ds.lastError);
+					r = false;
+				}
+			}
+		}
+    }
+    if(r){
+		var dslist = [];
+		for (var idx in summarizerDSs)
+			dslist.push(summarizerDSs[idx]);
+		for (var idx in invalidFields){
+			var f = invalidFields[idx];
+			f.ds.setFieldEnabled(f.name,false);
+		}
+		var saveNext = function(){
+			var ds = dslist.pop();
+			if (ds){
+				ds.save(function(status,result){
+					if (!status)
+						icc.ui.displayMessage(result);
+					saveNext();
+				});
+			}else{
+				for (var idx in invalidFields){
+					var f = invalidFields[idx];
+					f.ds.setFieldEnabled(f.name,true);
+				}
+				for (var idx in summarizerDSs){
+					if (summarizerDSs[idx].mode === "browse"){
+						summarizerDSs[idx].editCurrent();
+					}
+				}
+
+			}
+		};
+		saveNext();
+
+    }
+
+}
+
+//provides comunication between an embed chat and global webpage
+//another side is in click_to_chat.js
+function IFrameEventListener() {
+    var m_responseFunctions = {
+        GET_SESSION_RESPONSE : {
+            callback : null,
+            timeout : 2000,
+            timeoutEvent : null
+        },
+        GET_ARGS_RESPONSE : {
+            callback : null,
+            timeout : 2000,
+            timeoutEvent : null
+        },
+        FIT_MINIMIZED_CHAT_RESPONSE : {
+            callback : null,
+            timeout : 2000,
+            timeoutEvent : null
+        },
+        MINIMIZE_CHAT_RESPONSE : {
+            callback : null,
+            timeout : 2000,
+            timeoutEvent : null
+        },
+        APP_MESSAGE_RESPONSE : {
+            callback : null,
+            timeout : 30000,
+            timeoutEvent : null
+        },
+		ENABLE_GEOLOCATION_RESPONSE:{
+            callback : null,
+            timeout : 500,
+            timeoutEvent : null
+        }
+    };
+
+	var QueryString = function () {
+		// This function is anonymous, is executed immediately and
+		// the return value is assigned to QueryString!
+		var query_string = {};
+		var query = window.location.search.substring(1);
+		var vars = query.split("&");
+		for (var i=0;i<vars.length;i++) {
+			var pair = vars[i].split("=");
+			// If first entry with this name
+			if (typeof query_string[pair[0]] === "undefined") {
+				query_string[pair[0]] = decodeURIComponent(pair[1]);
+			}
+			// If second entry with this name
+			else if (typeof query_string[pair[0]] === "string") {
+				var arr = [ query_string[pair[0]],decodeURIComponent(pair[1]) ];
+				query_string[pair[0]] = arr;
+			}
+			// If third or later entry with this name
+			else {
+				query_string[pair[0]].push(decodeURIComponent(pair[1]));
+			}
+		}
+		return query_string;
+	}();
+
+	var initialized = false;
+    var m_token = QueryString && QueryString.notify || null;
+	var m_ctrl = null;
+
+	//events from source
+	var m_events = {};
+
+    function initialize() {
+		initialized = true;
+		if (!m_token) {
+			return;
+		}
+        try {
+            window.addEventListener('message', function(event) {
+                if (!$.isArray(event.data) || event.data[0] !== m_token) {
+                    return;
+                }
+                switch(event.data[1]) {
+                    case "GET_SESSION_RESPONSE":
+                        return response("GET_SESSION_RESPONSE", event.data[2]);
+                    case "GET_ARGS_RESPONSE":
+                        return response("GET_ARGS_RESPONSE", event.data[2]);
+                    case "FIT_MINIMIZED_CHAT_RESPONSE":
+                        return response("FIT_MINIMIZED_CHAT_RESPONSE", event.data[2]);
+                    case "MINIMIZE_CHAT_RESPONSE":
+                        return response("MINIMIZE_CHAT_RESPONSE", event.data[2]);
+                    case "APP_MESSAGE_RESPONSE":
+                        return response("APP_MESSAGE_RESPONSE", event.data[2]);
+                    case "SHOW_MINIMIZED_CHAT":
+                        return m_events.showMinimizedChat();
+                    case "HIDE_MINIMIZED_CHAT":
+                        return m_events.hideMinimizedChat();
+                    case "SHOW_CHAT":
+                        return m_events.showChat(event.data[2]);
+                    case "HIDE_CHAT":
+                        return m_events.hideChat();
+                    case "DO_CLOSE_CHAT":
+                        return m_events.doCloseChat();
+                    case "ON_NEW_MESSAGE":
+                        return m_events.onNewMessage();
+                    case "ON_MESSAGES_READED":
+                        return m_events.onMessagesReaded();
+                    case "SEND_MESSAGE_TO_APP":
+                        return m_events.messageToApp(event.data[2]);
+                }
+            });
+			if (window.location.pathname.indexOf("___start_minimized") < 0 && QueryString.token) {
+				sendMessage("CHANGE_TOKEN", QueryString.token);
+			}
+        }
+        catch(e) {}
+    }
+
+    function sendMessage(event, data) {
+        if (!initialized) {
+            initialize();
+        }
+		if (!m_token) {
+			return;
+		}
+        var responseEntry = m_responseFunctions[event + "_RESPONSE"];
+        if (responseEntry && responseEntry.callback) {
+            responseEntry.timeoutEvent = window.setTimeout(function() {
+                response(event + "_RESPONSE", null);
+            }, responseEntry.timeout);
+        }
+        try {
+            parent.postMessage([m_token, event, data], "*");
+        }
+        catch(e) {}
+    }
+
+    function response(event_name, data) {
+        var responseEntry = m_responseFunctions[event_name];
+        if (responseEntry.timeoutEvent) {
+            window.clearTimeout(responseEntry.timeoutEvent);
+            responseEntry.timeoutEvent = null;
+        }
+        var responseFunction = responseEntry.callback;
+        responseEntry.callback = null;
+        if (responseFunction) {
+            responseFunction(data);
+        }
+    }
+
+	m_events.showMinimizedChat = function() {
+		if (m_ctrl) {
+			m_ctrl._show(function() {
+				sendMessage("SHOW_MINIMIZED_CHAT_RESPONSE");
+			});
+		}
+	};
+
+	m_events.hideMinimizedChat = function() {
+		if (m_ctrl) {
+			m_ctrl._hide(function() {
+				sendMessage("HIDE_MINIMIZED_CHAT_RESPONSE");
+			});
+		}
+	};
+
+	m_events.onNewMessage = function() {
+		if (m_ctrl) {
+			m_ctrl.onNewMessage();
+		}
+	};
+
+	m_events.onMessagesReaded = function() {
+		if (m_ctrl) {
+			m_ctrl.onMessagesReaded();
+		}
+	};
+
+	m_events.showChat = function(rejoin) {
+		m_ctrl._show(rejoin, function() {
+			sendMessage("SHOW_CHAT_RESPONSE");
+		});
+	};
+
+	m_events.hideChat = function() {
+		m_ctrl._hide(function() {
+			sendMessage("HIDE_CHAT_RESPONSE");
+		});
+	};
+
+	m_events.doCloseChat = function() {
+		m_ctrl.close();
+	};
+
+	m_events.messageToApp = function(message) {
+		if (m_ctrl) {
+			var callback = message.callback? function(response) {
+				sendMessage("SEND_MESSAGE_TO_APP_RESPONSE", response);
+			} : null;
+			m_ctrl.pageMessage(message.data, callback);
+		}
+	};
+
+    this.closeChat = function() {
+        sendMessage("CLOSE_CHAT");
+    };
+
+    this.setSession = function(session) {
+        sendMessage("SET_SESSION", session);
+    };
+
+    this.setArgs = function(args) {
+        sendMessage("SET_ARGS", args);
+    };
+
+    this.setTransfer = function(context) {
+        sendMessage("SET_TRANSFER", context);
+    };
+
+    this.cleanEnvironment = function() {
+        sendMessage("CLEAN_ENVIRONMENT");
+    };
+
+    this.getSession = function(callback) {
+        m_responseFunctions.GET_SESSION_RESPONSE.callback = callback;
+        sendMessage("GET_SESSION");
+    };
+
+    this.getArgs = function(callback) {
+        m_responseFunctions.GET_ARGS_RESPONSE.callback = callback;
+        sendMessage("GET_ARGS");
+    };
+
+    this.openChat = function() {
+        sendMessage("OPEN_CHAT");
+    };
+
+    this.minimizeChat = function(dontShowMinimized, callback) {
+        m_responseFunctions.MINIMIZE_CHAT_RESPONSE.callback = callback;
+        sendMessage("MINIMIZE_CHAT", dontShowMinimized);
+    };
+
+	this.newMessage = function(message) {
+        sendMessage("NEW_MESSAGE", message);
+	};
+
+	this.fitChat = function(ctrl, configuration) {
+		m_ctrl = ctrl;
+        sendMessage("FIT_CHAT", configuration);
+	};
+
+	this.fitMinimizedChat = function(ctrl, configuration, callback) {
+		m_ctrl = ctrl;
+        m_responseFunctions.FIT_MINIMIZED_CHAT_RESPONSE.callback = callback;
+        sendMessage("FIT_MINIMIZED_CHAT", configuration);
+	};
+
+	this.showMinimizedShadow = function() {
+        sendMessage("SHOW_MINIMIZED_SHADOW");
+	};
+
+    this.transferToInactiveCampaign = function(account, callback) {
+        sendMessage("TRANSFER_TO_INACTIVE_CAMPAIGN", account);
+    };
+
+    this.setCurrentForm = function(form) {
+        sendMessage("CURRENT_FORM", form);
+    };
+
+    this.sendMessageToPage = function(data, callback) {
+        m_responseFunctions.APP_MESSAGE_RESPONSE.callback = callback;
+		var message = {
+			data		: data,
+			callback	: callback? true : false
+		};
+        sendMessage("APP_MESSAGE", message);
+    };
+
+	this.enableScreenSharing = function(containerId, enable) {
+		var messageParams = {
+			containerId : containerId,
+			enable: enable
+		}
+		sendMessage("ENABLE_SCREEN_SHARING", messageParams);
+	};
+
+	this.enableGeolocation = function (containerId, enable, callback) {
+		m_responseFunctions.ENABLE_GEOLOCATION_RESPONSE.callback = callback;
+		var messageParams = {
+			containerId: containerId,
+			enable: enable,
+			callback	: callback? true : false
+		}
+		sendMessage("ENABLE_GEOLOCATION", messageParams);
+	};
+
+}
+
+var iFrameEventListener = new IFrameEventListener();
+
+//obtains web chat service url
+function getWebchatUrl() {
+	var protocol = window.location.protocol || "http:";
+	var port = window.location.port;
+
+	var host = window.location.host;
+
+	var host_a = host.split(".");
+	var chatSubdomain = host_a[0];
+	var domain = "";
+	for (var i = 1; i < host_a.length; i++) {
+		domain += "." + host_a[i];
+	}
+
+	var chatSubdomain_a = chatSubdomain.split("-");
+	var subdomain = "webchat";
+	for (var i = 1; i < chatSubdomain_a.length; i++) {
+		subdomain += "-" + chatSubdomain_a[i];
+	}
+
+	var url = protocol + "//"
+			+ subdomain
+			+ domain
+			+ (port? (":" + port) : "")
+			+ "/";
+	return url;
+}
+
+//obtains web contact service url
+function getWebcontactUrl() {
+	var protocol = window.location.protocol || "http:";
+	var port = window.location.port;
+
+	var host = window.location.host;
+
+	var host_a = host.split(".");
+	var chatSubdomain = host_a[0];
+	var domain = "";
+	for (var i = 1; i < host_a.length; i++) {
+		domain += "." + host_a[i];
+	}
+
+	var chatSubdomain_a = chatSubdomain.split("-");
+	var subdomain = "webcontact";
+	for (var i = 1; i < chatSubdomain_a.length; i++) {
+		subdomain += "-" + chatSubdomain_a[i];
+	}
+
+	var url = protocol + "//"
+			+ subdomain
+			+ domain
+			+ (port? (":" + port) : "")
+			+ "/";
+	return url;
+}
+
+//provides local storage cross chat services
+function ChatLocalStorage() {
+	var m_responseFunctions = {
+        GET_TRANSFER_CONTEXT_RESPONSE : {
+            callback : null,
+            timeout : 2000,
+            timeoutEvent : null
+        },
+        SET_TRANSFER_CONTEXT_RESPONSE : {
+            callback : null,
+            timeout : 2000,
+            timeoutEvent : null
+        },
+        GET_TICKET_RESPONSE : {
+            callback : null,
+            timeout : 2000,
+            timeoutEvent : null
+        },
+        GET_CUSTOM_MESSAGES_RESPONSE : {
+            callback : null,
+            timeout : 2000,
+            timeoutEvent : null
+        },
+        GET_BOT_MESSAGES_RESPONSE : {
+            callback : null,
+            timeout : 2000,
+            timeoutEvent : null
+        }
+    };
+
+    var m_token = null;
+	var m_iframe = null;
+
+	var QueryString = function () {
+		// This function is anonymous, is executed immediately and
+		// the return value is assigned to QueryString!
+		var query_string = {};
+		var query = window.location.search.substring(1);
+		var vars = query.split("&");
+		for (var i=0;i<vars.length;i++) {
+			var pair = vars[i].split("=");
+			// If first entry with this name
+			if (typeof query_string[pair[0]] === "undefined") {
+				query_string[pair[0]] = decodeURIComponent(pair[1]);
+			}
+			// If second entry with this name
+			else if (typeof query_string[pair[0]] === "string") {
+				var arr = [ query_string[pair[0]],decodeURIComponent(pair[1]) ];
+				query_string[pair[0]] = arr;
+			}
+			// If third or later entry with this name
+			else {
+				query_string[pair[0]].push(decodeURIComponent(pair[1]));
+			}
+		}
+		return query_string;
+	}();
+
+	function loadIFrame() {
+		var url = getWebchatUrl()
+				+ "v3/pages/storage.html?id="
+				+ encodeURIComponent(m_token);
+		var html = '<div style="display:none;">'
+				 +		'<iframe id="' + m_token + '" src="' + url + '">'
+				 +		'</iframe>'
+				 + '</div>';
+		$("body").append(html);
+		var iframeObject = document.getElementById(m_token);
+		m_iframe = iframeObject.contentWindow;
+	}
+
+    function initialize() {
+		m_token = icc.utils.guid();
+		loadIFrame();
+        try {
+            window.addEventListener('message', function(event) {
+                if (!$.isArray(event.data) || event.data[0] !== m_token) {
+                    return;
+                }
+                switch(event.data[1]) {
+                    case "GET_TRANSFER_CONTEXT_RESPONSE":
+                        return response(event.data[1], event.data[2]);
+                    case "SET_TRANSFER_CONTEXT_RESPONSE":
+                        return response(event.data[1], event.data[2]);
+                    case "GET_CUSTOM_MESSAGES_RESPONSE":
+                        return response(event.data[1], event.data[2]);
+                    case "GET_BOT_MESSAGES_RESPONSE":
+                        return response(event.data[1], event.data[2]);
+                }
+            });
+        }
+        catch(e) {}
+    }
+
+    function sendMessage(event, data) {
+        var responseEntry = m_responseFunctions[event + "_RESPONSE"];
+        if (responseEntry && responseEntry.callback) {
+            responseEntry.timeoutEvent = window.setTimeout(function() {
+                response(event + "_RESPONSE", null);
+            }, responseEntry.timeout);
+        }
+        try {
+            m_iframe.postMessage([m_token, event, data], "*");
+        }
+        catch(e) {}
+    }
+
+    function response(event_name, data) {
+        var responseEntry = m_responseFunctions[event_name];
+        if (responseEntry.timeoutEvent) {
+            window.clearTimeout(responseEntry.timeoutEvent);
+            responseEntry.timeoutEvent = null;
+        }
+        var responseFunction = responseEntry.callback;
+        responseEntry.callback = null;
+        if (responseFunction) {
+            responseFunction(data);
+        }
+    }
+
+	this.getTransferContext = function(interactionID, callback) {
+		interactionID = interactionID || QueryString && QueryString["transferrer_id"];
+		if (!interactionID) {
+			return callback(null);
+		}
+        m_responseFunctions.GET_TRANSFER_CONTEXT_RESPONSE.callback = callback;
+        sendMessage("GET_TRANSFER_CONTEXT", interactionID);
+    };
+
+	this.setTransferContext = function(context, callback) {
+        m_responseFunctions.SET_TRANSFER_CONTEXT_RESPONSE.callback = callback;
+        sendMessage("SET_TRANSFER_CONTEXT", context);
+    };
+
+	this.getCustomMessages = function(appToken, callback) {
+        m_responseFunctions.GET_CUSTOM_MESSAGES_RESPONSE.callback = callback;
+        sendMessage("GET_CUSTOM_MESSAGES", appToken);
+    };
+
+	this.addCustomMessage = function(appToken, message) {
+        sendMessage("ADD_CUSTOM_MESSAGE", { appToken : appToken, message : message });
+    };
+
+	this.cleanCustomMessages = function(appToken) {
+		sendMessage("CLEAN_CUSTOM_MESSAGES", appToken);
+	};
+
+	this.getBotMessages = function(appToken, callback) {
+        m_responseFunctions.GET_BOT_MESSAGES_RESPONSE.callback = callback;
+        sendMessage("GET_BOT_MESSAGES", appToken);
+    };
+
+	this.addBotMessage = function(appToken, message) {
+        sendMessage("ADD_BOT_MESSAGE", { appToken : appToken, message : message });
+    };
+
+	this.cleanBotMessages = function(appToken) {
+		sendMessage("CLEAN_BOT_MESSAGES", appToken);
+	};
+
+	$(document).ready(function() {
+		initialize();
+	});
+}
+
+var chatLocalStorage = new ChatLocalStorage();
+
+function GetTransferContext(callback) {
+	chatLocalStorage.getTransferContext(null, callback);
+}
+
+function LoadTransferContext(self, form) {
+
+	function getVariable(variable) {
+		return variable && eval("try { " + variable + " } catch(e) { null }") || null;
+	}
+	function getDatasource(dsData) {
+		var dsName = (dsData.__SID || "").split("_")[0];
+		return getVariable(dsName);
+	}
+
+	var excludedFields = {
+		"_HasLogin"			: true,
+		"_HasPreSurvey"		: true,
+		"_HasPostSurvey"	: true
+	};
+
+	GetTransferContext(function(context) {
+		if (!context) {
+			return;
+		}
+
+		var formData = context.reportingData && context.reportingData[form];
+		var dsData = context.reportingData && context.reportingData.dswebchat;
+		var contactData = context.contact;
+
+		//form
+		if (formData) {
+			var controls = {};
+			(function findControls(control) {
+				if (control.childs) {
+					$.each(control.childs, function(_, child) {
+						findControls(child);
+					});
+				}
+				else {
+					if (control.id && !controls[control.id]) {
+						controls[control.id] = control;
+					}
+				}
+			})(self);
+
+			$.each(formData.fields || [], function(_, field) {
+				var control = controls[field.name];
+				if (control) {
+					if (control instanceof icc.ui.textinput) {
+						control.setText(field.value);
+					}
+					else if (control instanceof icc.ui.combobox) {
+						control.setItem(field.value);
+					}
+					else if (control instanceof icc.ui.optiongroup ||
+							 control instanceof icc.ui.optionbutton ||
+							 control instanceof icc.ui.checkbutton
+					) {
+						control.setChecked(field.value);
+					}
+				}
+			});
+		}
+
+		//datasource
+		if (dsData && !window.hasOwnProperty("transferDsLoaded")) {
+			window.transferDsLoaded = true;
+			var ds = getDatasource(dsData);
+			if (ds) {
+				$.each(ds.fields || [], function(_, field) {
+					if (!excludedFields[field.name]) {
+						ds.set(field.name, field.value);
+					}
+				});
+			}
+		}
+
+		//contact
+		if (contactData && !window.hasOwnProperty("contactDataLoaded")) {
+			window.contactDataLoaded = true;
+			(function findControls(control) {
+				if (!control.childs) {
+					//name
+					if (control.identifierType === "NAME" && contactData.name) {
+						control.setText(contactData.name);
+					}
+					//id
+					if (control.identifierType === "ID" && contactData.externalId) {
+						control.setText(contactData.externalId);
+					}
+					//addresses
+					if (control.addressType && contactData.addresses) {
+						$.each(contactData.addresses, function(_, address) {
+							if (!address.used && address.type === control.addressType &&
+									address.address !== contactData.externalId)
+							{
+								control.setText(address.address);
+								address.used = true;
+								return false;
+							}
+						});
+					}
+				}
+				else {
+					$.each(control.childs, function(_, child) {
+						findControls(child);
+					});
+				}
+			})(self);
+		}
+
+	});
+}
+
+//manages google analytics integration
+function GoogleAnalyticsHelper() {
+    var m_key = null;
+    var m_ga = null;
+
+    function init(key) {
+        /////////////GOOGLE CODE
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments);},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m);
+        })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+        /////////////END GOOGLE CODE
+        m_key = key;
+        m_ga = ga;
+        m_ga('create', key, 'auto');
+        m_ga('require', 'displayfeatures');
+    }
+
+    this.registerView = function(key, view) {
+        init(key);
+        var page = document.location.pathname;
+        if (view) {
+            page += "/" + view;
+        }
+        m_ga('send', 'pageview', page);
+    };
+
+}
+var googleAnalyticsHelper = new GoogleAnalyticsHelper();

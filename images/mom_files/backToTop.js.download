@@ -1,0 +1,33 @@
+/******/ (function() { // webpackBootstrap
+/******/ 	"use strict";
+var __webpack_exports__ = {};
+/*!*******************************************************************************!*\
+  !*** ./cartridges/app_mk_storefront/cartridge/client/default/js/backToTop.js ***!
+  \*******************************************************************************/
+
+
+$(document).ready(function () {
+  var $window = $(window);
+  var windowHeight = $window.height();
+  var scrollCount = $('.js-scroll-count').data('scroll-count');
+  var scrollCurrentHeight = Math.round(windowHeight * scrollCount);
+  var $backToTopButton = $('.back-to-top');
+  $window.scroll(function () {
+    var currentTopPos = $window.scrollTop();
+
+    if (currentTopPos > scrollCurrentHeight) {
+      $backToTopButton.removeClass('d-none');
+      $backToTopButton.addClass('back-to-top-icon-loaded');
+      $('.webchatStartButtonContainer').addClass('back-to-top-loaded');
+      $('.ae-cta-position-preset-right-lower').addClass('back-to-top-loaded');
+    } else {
+      $backToTopButton.addClass('d-none');
+      $backToTopButton.removeClass('back-to-top-icon-loaded');
+      $('.webchatStartButtonContainer').removeClass('back-to-top-loaded');
+      $('.ae-cta-position-preset-right-lower').removeClass('back-to-top-loaded');
+    }
+  });
+});
+/******/ })()
+;
+//# sourceMappingURL=backToTop.js.map

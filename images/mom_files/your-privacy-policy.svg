@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="35.62" height="17.246" viewBox="0 0 35.62 17.246">
+  <g id="Group_5742" data-name="Group 5742" transform="translate(-3145 19560)">
+    <rect id="Rectangle_564" data-name="Rectangle 564" width="27.196" height="17.246" rx="8.623" transform="translate(3145 -19560)" fill="#fff"/>
+    <path id="Rectangle_8705" data-name="Rectangle 8705" d="M0,0H8.424a8.623,8.623,0,0,1,8.623,8.623v0a8.623,8.623,0,0,1-8.623,8.623H0a0,0,0,0,1,0,0V0A0,0,0,0,1,0,0Z" transform="translate(3163.573 -19560)" fill="#0a0a0a"/>
+    <g id="Group_5740" data-name="Group 5740" transform="translate(3168.879 -19554.693)">
+      <rect id="Rectangle_8707" data-name="Rectangle 8707" width="6.434" height="6.434" fill="#e0cccc" opacity="0"/>
+      <g id="Group_5739" data-name="Group 5739" transform="translate(1.327 1.327)">
+        <line id="Line_12" data-name="Line 12" x2="0.14" y2="5.167" transform="translate(3.755 3.653) rotate(135)" fill="none" stroke="#fff" stroke-width="1"/>
+        <line id="Line_13" data-name="Line 13" x2="5.167" y2="0.14" transform="translate(3.752 0.101) rotate(135)" fill="none" stroke="#fff" stroke-width="1"/>
+      </g>
+    </g>
+    <g id="Group_5741" data-name="Group 5741" transform="translate(3150.074 -19554.693)">
+      <rect id="Rectangle_8706" data-name="Rectangle 8706" width="8.424" height="6.766" fill="#e0cccc" opacity="0"/>
+      <g id="Group_5738" data-name="Group 5738" transform="translate(1.327 1.328)">
+        <path id="Union_1" data-name="Union 1" d="M5.748,0,1.871,3.867ZM0,1.873l1.871,1.99Z" transform="translate(0 0)" stroke="#000" stroke-width="1"/>
+        <path id="Path_18563" data-name="Path 18563" d="M3232.126-19541.289h.822l-.326-.584Z" transform="translate(-3230.687 19545.547)"/>
+      </g>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,12 @@
+/*GENERATED CODE */icc.cache.___start_minimized=function(icc,environment){designer=false;var args=environment.arguments;window._form_env=environment;var ___start_minimized=new icc.ui.panel({"childs":[],"fillWidth":true,"id":"___start_minimized","testparams":[],"version":2,"overflow":"visible","name":"___start_minimized","formType":"form","fillHeight":true},environment);;var self=___start_minimized;if(!designer){
+  var app = icc.ui.getApplication()  
+      if(args.mobile && haveScreen("startButtonMobile"))
+	  app.show("startButtonMobile",args)
+   else if(haveScreen("startButton"))
+	  app.show("startButton",args)
+       else
+	  app.show("___start_button",args)
+    }
+ 
+// END USER CODE
+ return ___start_minimized;};

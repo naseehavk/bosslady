@@ -1,0 +1,30 @@
+/******/ (function() { // webpackBootstrap
+/******/ 	"use strict";
+var __webpack_exports__ = {};
+/*!******************************************************************************************!*\
+  !*** ./cartridges/app_mk_storefront/cartridge/client/default/js/createCJServerCookie.js ***!
+  \******************************************************************************************/
+
+
+$(window).on('load', function () {
+  var isCommissionJunctionEnabled = window.isCommissionJunctionEnabled || false;
+
+  if (isCommissionJunctionEnabled) {
+    if ($('#cjCookie').length !== 0) {
+      var cjURL = $('#cjCookie').attr('data-url');
+
+      if (cjURL) {
+        $.ajax({
+          url: cjURL,
+          type: 'get',
+          dataType: 'json',
+          success: function success() {// nothing needs to be done
+          }
+        });
+      }
+    }
+  }
+});
+/******/ })()
+;
+//# sourceMappingURL=createCJServerCookie.js.map

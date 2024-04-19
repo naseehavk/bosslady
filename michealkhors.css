@@ -1,0 +1,15 @@
+ul{
+    list-style-type: none;
+}
+#ftrhd{
+    font-family: "Kors Sans Medium", arial, sans-serif;
+}
+a{
+    color: red;
+    /* background-color: aquamarine; */
+}
+a:hover{
+ color: blue;
+  text-decoration: underline;
+  font-size: large;
+}
