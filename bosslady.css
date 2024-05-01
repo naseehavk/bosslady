@@ -6,10 +6,83 @@ ul{
 }
 a{
     color: red;
-    /* background-color: aquamarine; */
+    
 }
 a:hover{
  color: blue;
   text-decoration: underline;
   font-size: large;
+}
+
+@media(max-device-width : 600px) {
+
+    /* body{
+        gutter:0;
+
+    } */
+
+    .col-lg-6{
+        display: none;
+    }
+    .col-sm-12{
+        display: block;
+    }
+
+    #iconlayer {
+        display: none;
+    }
+    .watchimg{
+        width: 100%;
+        margin-left: 0;
+        margin-top: 0;
+        
+    }
+    .aw{
+        text-align: center;
+    }
+.handbgimg{
+    width: 100%;
+}
+.ah{
+    text-align: center;
+}
+}
+
+
+
+
+@media(min-width :768px){
+
+    .col-sm-12{
+        display: none;
+    }
+    .col-lg-6{
+        display: block;
+    }
+    
+    .momimage{
+        width: 100%;
+    }
+    .shoeimg{
+
+    }
+.as{
+    margin-left: 300px ;
+}
+    .watchimg{
+      
+        width: 75%;
+        margin-left: 119px; 
+        margin-top: 100px; 
+    }
+    .aw{
+        margin-left: 500px;
+    }
+    .handbgimg{
+        width:65% ;
+        text-align: center;
+    }
+    .ah{
+        margin-left: 289px;
+    }
 }
