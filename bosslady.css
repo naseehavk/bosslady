@@ -51,7 +51,7 @@ a:hover{
 
 
 
-@media(min-width :768px){
+@media(min-device-width :768px){
 
     .col-sm-12{
         display: none;
